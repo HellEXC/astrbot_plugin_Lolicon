@@ -72,7 +72,7 @@ class ImageManager:
 image_manager = ImageManager()
 
 async def fetch_setu(
-        r18: int = 0,
+        r18: int = 1,
         num: int = 1,
         tags: Optional[List[List[str]]] = None,
         size: List[str] = None,
@@ -125,8 +125,8 @@ class ArknightsPlugin(Star):
         """处理所有消息事件"""
         try:
             text = event.message_str.lower()
-            if any(keyword in text for keyword in ["我要色色", "我要色图", "我要涩涩"]):
-                await event.send(event.plain_result("咳咳大胆"))
+            if any(keyword in text for keyword in ["我要色色", "我要色图", "我要涩涩","色色","涩涩"]):
+                await event.send(event.plain_result("皇上又来了"))
                 return await self.handle_image_request(event)
         except Exception as e:
             logger.error(f"Message handler error: {str(e)}")
@@ -143,18 +143,18 @@ class ArknightsPlugin(Star):
                 num=1
             )
             if not results:
-                return event.plain_result("不准涩涩")
+                return event.plain_result("不能涩涩了")
 
             item = results[0]
             original_url = item['urls'].get("original")
             if not original_url:
-                return event.plain_result("没有找到涩涩")
+                return event.plain_result("不行了皇上，高潮了")
 
             filename = f"{item['pid']}_p{item['p']}.{item['ext']}"
 
             save_success = await self.image_manager.generate_and_save_image(original_url, filename)
             if not save_success:
-                return event.plain_result("你怎么这么自私")
+                return event.plain_result("啊啊啊啊啊啊啊啊")
 
             image_path = os.path.join(self.image_manager.imgs_folder, filename)
             message_chain = event.make_result().file_image(image_path)
@@ -167,7 +167,7 @@ class ArknightsPlugin(Star):
                 # 延迟删除（避免发送过程中文件被删除）
                 await asyncio.sleep(1)
                 delete_success = await self.image_manager.delete_image(filename)
-                return event.plain_result("色批给你好了") if delete_success \
+                return event.plain_result("皇上出来了") if delete_success \
                     else event.plain_result("完了涩涩没有打扫干净")
 
             except Exception as e:
