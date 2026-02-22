@@ -114,7 +114,7 @@ async def fetch_setu(
         logger.error(f"Unexpected Error: {str(e)}")
         return None
 
-@register("astrbot_plugin_lolicon", "hello七七", "我要涩涩", "1.3", "https://github.com/ttq7/astrbot_plugin_Lolicon")
+@register("astrbot_plugin_lolicon", "hello", "涩涩", "1.3", "https://github.com/ttq7/astrbot_plugin_Lolicon")
 class ArknightsPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -124,51 +124,37 @@ class ArknightsPlugin(Star):
     async def on_message(self, event: AstrMessageEvent) -> MessageEventResult:
         """处理所有消息事件"""
         try:
-            text_lower = event.message_str.lower()
-            # 检查是否包含核心关键词
-            has_keyword = any(keyword in text_lower for keyword in ["色色", "涩涩"])
-            
-            if has_keyword:
-                # 判断是否为 R18 请求 (包含关键词但不含“健康”)
-                if "健康" not in text_lower:
-                    # R18 请求
-                    await event.send(event.plain_result("皇上又来了"))
-                    return await self.handle_r18_image_request(event)
-                else:
-                    # 非 R18 请求 (包含关键词也包含“健康”)
-                    await event.send(event.plain_result("好的，为您准备健康的内容~"))
-                    return await self.handle_non_r18_image_request(event)
-                    
+            text = event.message_str.lower()
+            if any(keyword in text for keyword in ["色色", "色图", "涩涩"]):
+                await event.send(event.plain_result("皇上又来了 喵"))
+                return await self.handle_image_request(event)
         except Exception as e:
             logger.error(f"Message handler error: {str(e)}")
             return event.plain_result(f"插件异常: {str(e)}")
-        
-        # 如果没有命中关键词，则返回空结果，不触发任何操作
-        return event.empty_result()
 
-    async def handle_r18_image_request(self, event: AstrMessageEvent) -> MessageEventResult:
-        """异步处理 R18 图片请求"""
+    async def handle_image_request(self, event: AstrMessageEvent) -> MessageEventResult:
+        """异步处理图片请求全流程"""
         try:
+
             results = await fetch_setu(
-                r18=1, # R18
                 tags=[[], []],
                 exclude_ai=True,
                 aspect_ratio="gt1",
                 num=1
             )
             if not results:
-                return event.plain_result("不能涩涩了")
+                return event.plain_result("皇上不行了 喵")
 
             item = results[0]
             original_url = item['urls'].get("original")
             if not original_url:
-                return event.plain_result("不行了皇上，高潮了")
+                return event.plain_result("皇上没戴那个 喵")
 
             filename = f"{item['pid']}_p{item['p']}.{item['ext']}"
 
             save_success = await self.image_manager.generate_and_save_image(original_url, filename)
             if not save_success:
-                return event.plain_result("啊啊啊啊啊啊啊啊")
+                return event.plain_result("皇上不能内射 喵")
 
             image_path = os.path.join(self.image_manager.imgs_folder, filename)
             message_chain = event.make_result().file_image(image_path)
@@ -176,72 +162,25 @@ class ArknightsPlugin(Star):
             # 异步发送图片
             try:
                 await event.send(message_chain)
-                logger.info(f"R18 Image sent: {filename}")
+                logger.info(f"Image sent: {filename}")
                 
                 # 延迟删除（避免发送过程中文件被删除）
                 await asyncio.sleep(1)
                 delete_success = await self.image_manager.delete_image(filename)
-                return event.plain_result("皇上出来了") if delete_success \
+                return event.plain_result("啊 出来了 喵") if delete_success \
                     else event.plain_result("完了涩涩没有打扫干净")
 
             except Exception as e:
-                logger.warning(f"Send failed for R18 {filename}: {str(e)}")
+                logger.warning(f"Send failed for {filename}: {str(e)}")
                 await self.image_manager.delete_image(filename)  
-                return event.plain_result("信号不好没有找到涩涩")
+                return event.plain_result("皇上我处理不好 喵")
 
         except Exception as e:
-            logger.error(f"R18 Request handling failed: {str(e)}")
+            logger.error(f"Request handling failed: {str(e)}")
             return event.plain_result("处理请求时发生错误，请联系管理员")
 
-    async def handle_non_r18_image_request(self, event: AstrMessageEvent) -> MessageEventResult:
-        """异步处理 非R18 图片请求"""
-        try:
-            results = await fetch_setu(
-                r18=0, # 非 R18
-                tags=[[], []],
-                exclude_ai=True,
-                aspect_ratio="gt1",
-                num=1
-            )
-            if not results:
-                return event.plain_result("暂时没有健康内容可以提供哦")
-
-            item = results[0]
-            original_url = item['urls'].get("original")
-            if not original_url:
-                return event.plain_result("获取健康内容链接失败")
-
-            filename = f"{item['pid']}_p{item['p']}.{item['ext']}"
-
-            save_success = await self.image_manager.generate_and_save_image(original_url, filename)
-            if not save_success:
-                return event.plain_result("保存健康内容时出现问题")
-
-            image_path = os.path.join(self.image_manager.imgs_folder, filename)
-            message_chain = event.make_result().file_image(image_path)
-            
-            # 异步发送图片
-            try:
-                await event.send(message_chain)
-                logger.info(f"Non-R18 Image sent: {filename}")
-                
-                # 延迟删除（避免发送过程中文件被删除）
-                await asyncio.sleep(1)
-                delete_success = await self.image_manager.delete_image(filename)
-                return event.plain_result("这是您要的健康内容哦~") if delete_success \
-                    else event.plain_result("内容已处理，但清理时出现问题。")
-
-            except Exception as e:
-                logger.warning(f"Send failed for Non-R18 {filename}: {str(e)}")
-                await self.image_manager.delete_image(filename)  
-                return event.plain_result("网络不佳，健康内容没送达到。")
-
-        except Exception as e:
-            logger.error(f"Non-R18 Request handling failed: {str(e)}")
-            return event.plain_result("获取内容时出错啦，请稍后再试~")
-
     async def terminate(self):
-        """插件终止时清理图片"""
+ 
         try:
             image_files = await self.image_manager.get_image_list()
             if image_files:
@@ -249,4 +188,5 @@ class ArknightsPlugin(Star):
             logger.info("Plugin terminated, cleaned up %d images", len(image_files))
         except Exception as e:
             logger.error(f"Cleanup failed: {str(e)}")
-            
+    
+
