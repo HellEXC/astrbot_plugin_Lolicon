@@ -72,7 +72,7 @@ class ImageManager:
 image_manager = ImageManager()
 
 async def fetch_setu(
-        r18: int = 0,
+        r18: int = 1,
         num: int = 1,
         tags: Optional[List[List[str]]] = None,
         size: List[str] = None,
@@ -125,32 +125,18 @@ class ArknightsPlugin(Star):
         """处理所有消息事件"""
         try:
             text = event.message_str.lower()
-            # 定义触发词及其对应的R18级别
-            triggers = {
-                "色色": 1,  # R18模式
-                "涩涩": 1,  # R18模式
-                "我要色色": 0,  # 非R18模式
-                "我要色图": 0,  # 非R18模式
-                "我要涩涩": 0   # 非R18模式
-            }
-            
-            for trigger, r18_level in triggers.items():
-                if trigger in text:
-                    if r18_level == 1:
-                        await event.send(event.plain_result("皇上又来了"))
-                    else:
-                        await event.send(event.plain_result("咳咳，给你找点健康的"))
-                    return await self.handle_image_request(event, r18_level)
-                    
+            if any(keyword in text for keyword in ["我要色色", "我要色图", "我要涩涩","色色","涩涩"]):
+                await event.send(event.plain_result("皇上又来了"))
+                return await self.handle_image_request(event)
         except Exception as e:
             logger.error(f"Message handler error: {str(e)}")
             return event.plain_result(f"插件异常: {str(e)}")
 
-    async def handle_image_request(self, event: AstrMessageEvent, r18_level: int = 0) -> MessageEventResult:
-        """异步处理图片请求全流程，接受R18级别参数"""
+    async def handle_image_request(self, event: AstrMessageEvent) -> MessageEventResult:
+        """异步处理图片请求全流程"""
         try:
+
             results = await fetch_setu(
-                r18=r18_level,  # 使用传入的R18级别
                 tags=[[], []],
                 exclude_ai=True,
                 aspect_ratio="gt1",
@@ -181,14 +167,9 @@ class ArknightsPlugin(Star):
                 # 延迟删除（避免发送过程中文件被删除）
                 await asyncio.sleep(1)
                 delete_success = await self.image_manager.delete_image(filename)
-                
-                if r18_level == 1:  # R18模式回复
-                    return event.plain_result("皇上出来了") if delete_success \
-                        else event.plain_result("完了涩涩没有打扫干净")
-                else:  # 非R18模式回复
-                    return event.plain_result("健康图已送达") if delete_success \
-                        else event.plain_result("图片没清理干净，请稍后再试")
-                        
+                return event.plain_result("皇上出来了") if delete_success \
+                    else event.plain_result("完了涩涩没有打扫干净")
+
             except Exception as e:
                 logger.warning(f"Send failed for {filename}: {str(e)}")
                 await self.image_manager.delete_image(filename)  
@@ -199,6 +180,7 @@ class ArknightsPlugin(Star):
             return event.plain_result("处理请求时发生错误，请联系管理员")
 
     async def terminate(self):
+ 
         try:
             image_files = await self.image_manager.get_image_list()
             if image_files:
@@ -206,3 +188,4 @@ class ArknightsPlugin(Star):
             logger.info("Plugin terminated, cleaned up %d images", len(image_files))
         except Exception as e:
             logger.error(f"Cleanup failed: {str(e)}")
+    
